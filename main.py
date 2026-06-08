@@ -7,6 +7,7 @@ import onnxruntime as ort
 from fastapi import FastAPI
 from typing import Optional, Any
 from pydantic import BaseModel
+from datetime import datetime
 
 from assets import ONNX_BYTES, ARRAY_BYTES, ARRAY_SHAPE, ARRAY_DTYPE
 
@@ -16,6 +17,7 @@ class SystemResponse(BaseModel):
     response: Optional[Any] = None
 
 class PredictionData(BaseModel):
+    dt: datetime
     torqa: float
     hklda: float
     woba: float
@@ -26,6 +28,9 @@ class PredictionData(BaseModel):
     t1: float
     t2: float
     t3: float
+
+class WellRecords(BaseModel):
+    records: list[PredictionData]
 
 app = FastAPI()
 
@@ -45,27 +50,29 @@ def index():
     }
 
 @app.post("/api/prediction", response_model = SystemResponse)
-def get_prediction(records: PredictionData):
-    n_feat = np.array(list(records.model_dump().values()))
-    n_feat = np.expand_dims(n_feat.astype(np.float32), axis = 0)
-    p_risk = session.run(
-        [output_name], 
-        {input_name: n_feat}
-    )[0]
-    p_risk = relative_risk(p_risk)[0][0]
+def get_prediction(payload: WellRecords):
+    n_feat = np.array([
+        [val for val in row.model_dump().values() if isinstance(val, (int, float))]
+        for row in payload.records
+    ], dtype = np.float32)
+    p_risk = session.run([output_name], {input_name: n_feat})[0]
+    p_risk = relative_risk(p_risk)
+    p_risk = p_risk.flatten().tolist()
+
+    p_data = payload.records
+    for i in range(len(p_data)):
+        p_data[i] = dict(p_data[i])
+        p_data[i]['risk'] = round(p_risk[i], 3)
+        p_data[i]['alert'] = int(p_risk[i] > 0.97)
 
     return {
         "status" : "success",
         "message" : "stuck pipe risk has been successfully predicted",
-        "response" : {
-            "risk"  : p_risk,
-            "alert" : int(p_risk > 0.97),
-            "data"  : records
-        }
+        "response" : p_data
     }
 
 def relative_risk(risk):
-    return np.searchsorted(ref_sorted, risk, side="right") / len(ref_sorted)
+    return np.searchsorted(ref_sorted, risk, side="righ t") / len(ref_sorted)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5106))
