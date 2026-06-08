@@ -1,0 +1,62 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dockerize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build --no-cache -t ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest .
+          docker push ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: dockerize
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Update Container
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_ADDRESS }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.USER_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            sudo docker stop manannan-model || true
+            sudo docker rm manannan-model || true
+            sudo docker pull ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest
+            sudo docker image prune -f || true
+
+            sudo docker run -d \
+              -p 5106:5106 \
+              --network rtm-network \
+              --name manannan-model \
+              ghcr.io/${{ github.repository_owner }}/${{ github.repository }}:latest

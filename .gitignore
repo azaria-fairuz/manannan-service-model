@@ -1,0 +1,15 @@
+# Python cache
+**/__pycache__/
+
+# Temp + local envs
+temp/
+venv/
+.env
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
