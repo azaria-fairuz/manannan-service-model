@@ -1,4 +1,6 @@
 assets.py
+# trained_model.json
+# shap_background.pkl
 
 # Python cache
 **/__pycache__/
