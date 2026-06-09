@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY trained_model.onnx trained_risks.npy converter.py main.py ./
+COPY trained_model.onnx trained_risks.npy shap_background.pkl converter.py main.py ./
 RUN python converter.py
-RUN rm trained_model.onnx trained_risks.npy converter.py
+RUN rm trained_model.onnx trained_risks.npy converter.py shap_background.pkl
 RUN python -m nuitka --standalone --remove-output main.py
 
 #-- stage 2
