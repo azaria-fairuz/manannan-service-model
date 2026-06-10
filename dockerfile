@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install Nuitka
 
-COPY trained_model.onnx trained_risks.npy shap_background.pkl converter.py main.py ./
+COPY trained_model.onnx trained_risks.npy converter.py main.py ./
 RUN python converter.py && \
-    rm trained_model.onnx trained_risks.npy converter.py shap_background.pkl
+    rm trained_model.onnx trained_risks.npy converter.py
 
 RUN --mount=type=cache,target=/root/.cache/Nuitka \
     python -m nuitka --standalone --remove-output --jobs=2 main.py
