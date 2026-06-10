@@ -13,9 +13,11 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY trained_model.onnx trained_risks.npy shap_background.pkl converter.py main.py ./
-RUN python converter.py
-RUN rm trained_model.onnx trained_risks.npy converter.py shap_background.pkl
-RUN python -m nuitka --standalone --remove-output main.py
+RUN python converter.py && \
+    rm trained_model.onnx trained_risks.npy converter.py shap_background.pkl
+
+RUN --mount=type=cache,target=/root/.cache/Nuitka \
+    python -m nuitka --standalone --remove-output --jobs=2 main.py
 
 #-- stage 2
 FROM python:3.11-slim AS runner
